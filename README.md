@@ -2,6 +2,11 @@
 
 Install the [Bagdock CLI](https://github.com/bagdock/bagdock-cli) via Homebrew.
 
+This tap is a generated, one-way release mirror: `Formula/bagdock.rb` is
+rendered and pushed automatically whenever a new `@bagdock/cli` version is
+released (see [CONTRIBUTING.md](CONTRIBUTING.md)). Do not edit the formula
+here directly.
+
 ## Install
 
 ```bash
