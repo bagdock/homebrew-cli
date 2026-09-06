@@ -1,0 +1,58 @@
+# Hand-placed from bagdock/bagdock-cli's homebrew-sync.yml (BDOK-1232). The
+# sync App is granted contents:write only (no workflows:write), so this file
+# is not synced automatically and must be updated here directly if it
+# changes.
+#
+# Purpose: auto-close source pull requests with a friendly redirect. Issues
+# stay open; only PRs are closed, since this repo cannot accept source
+# changes. Covers `reopened` too, since a closed PR can be reopened by its
+# author and would otherwise bypass this workflow (only `opened` fires it).
+#
+# `pull_request_target` is used deliberately so this workflow runs with repo
+# permissions even on PRs opened from forks. The script below does not check
+# out or run any code from the PR, so this is a safe use of
+# pull_request_target.
+
+name: Auto-close pull requests
+
+on:
+  pull_request_target:
+    types: [opened, reopened]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  autoclose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment and close
+        # Pinned to the v7.1.0 tag's commit (verified via `git ls-remote
+        # https://github.com/actions/github-script` against the current v7
+        # tag, 2026-09-06) rather than the mutable `v7` tag: this workflow
+        # grants pull-requests: write on pull_request_target, so an action
+        # reference that could move to different code on re-tag is a real
+        # supply-chain exposure here.
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
+        with:
+          script: |
+            const message = [
+              "Thanks for the interest. This tap is a generated, one-way mirror of the Bagdock CLI's release metadata, and its source of truth is bagdock/bagdock-cli, so pull requests here cannot be merged.",
+              "Please open an Issue instead if this is a bug report or feature request, and it will be triaged from there.",
+              "Closing this PR now, but we appreciate you taking the time.",
+            ].join(" ");
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: message,
+            });
+
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              state: "closed",
+            });

@@ -1,0 +1,57 @@
+# Hand-placed from bagdock/bagdock-cli's homebrew-sync.yml (BDOK-1232). The
+# sync App is granted contents:write only (no workflows:write), so this file
+# is not synced automatically and must be updated here directly if it
+# changes.
+#
+# Purpose: make drift visible. Fails if the most recent push to main was not
+# authenticated as the sync App.
+#
+# This is a detector, not a preventer: it runs after GitHub has already
+# accepted the push and updated main, so it can flag an unauthorized write
+# but not block or revert it. The actual preventive control is branch
+# protection on main restricting write access to the sync App (Duncan-gated,
+# see docs/mirror-inversion-runbook.md §7 in bagdock/bagdock) — this workflow
+# is the backstop that surfaces it loudly if that control is ever missing or
+# bypassed.
+
+name: Guardrail - author check
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check-author:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify the push was authenticated as the sync App
+        # github.actor is the identity GitHub authenticated the push event
+        # against (the App's bot login, for a push made with an installation
+        # token) — not git commit metadata. Checking `git log`'s %an author
+        # name, as this file originally did, checks a value the pusher fully
+        # controls (anyone with push access can `git config user.name
+        # "x[bot]"` locally), so it authorizes nothing. Verified against
+        # https://docs.github.com/en/webhooks/webhook-events-and-payloads#push
+        # ("sender" is the authenticated actor, distinct from the git-level
+        # "pusher"/commit metadata) and the standard github.actor-based bot
+        # guard pattern (e.g. guarding against github-actions[bot] re-triggers),
+        # 2026-09-06.
+        env:
+          ACTOR: ${{ github.actor }}
+          # Must match the shared sync App's bot login (GitHub Apps' bot user
+          # is always <slug>[bot]) from docs/mirror-inversion-runbook.md in
+          # bagdock/bagdock (§3: App name bagdock-mirror-sync).
+          EXPECTED: bagdock-mirror-sync[bot]
+        run: |
+          echo "Push actor: $ACTOR"
+          if [ "$ACTOR" = "$EXPECTED" ]; then
+            echo "OK: push authenticated as the sync App ($EXPECTED)."
+          else
+            echo "FAIL: push to main was authenticated as '$ACTOR', not the sync App ($EXPECTED)."
+            echo "This repo is a generated one-way mirror. Direct pushes to main are not expected."
+            echo "See docs/mirror-inversion-runbook.md in bagdock/bagdock (section 7, homebrew-cli) for the recovery steps."
+            exit 1
+          fi
