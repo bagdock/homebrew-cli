@@ -5,7 +5,8 @@
 #
 # Purpose: auto-close source pull requests with a friendly redirect. Issues
 # stay open; only PRs are closed, since this repo cannot accept source
-# changes.
+# changes. Covers `reopened` too, since a closed PR can be reopened by its
+# author and would otherwise bypass this workflow (only `opened` fires it).
 #
 # `pull_request_target` is used deliberately so this workflow runs with repo
 # permissions even on PRs opened from forks. The script below does not check
@@ -16,7 +17,7 @@ name: Auto-close pull requests
 
 on:
   pull_request_target:
-    types: [opened]
+    types: [opened, reopened]
 
 permissions:
   pull-requests: write
@@ -27,7 +28,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Comment and close
-        uses: actions/github-script@v7
+        # Pinned to the v7.1.0 tag's commit (verified via `git ls-remote
+        # https://github.com/actions/github-script` against the current v7
+        # tag, 2026-09-06) rather than the mutable `v7` tag: this workflow
+        # grants pull-requests: write on pull_request_target, so an action
+        # reference that could move to different code on re-tag is a real
+        # supply-chain exposure here.
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7.1.0
         with:
           script: |
             const message = [
