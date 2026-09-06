@@ -5,6 +5,14 @@
 #
 # Purpose: make drift visible. Fails if the most recent push to main was not
 # authenticated as the sync App.
+#
+# This is a detector, not a preventer: it runs after GitHub has already
+# accepted the push and updated main, so it can flag an unauthorized write
+# but not block or revert it. The actual preventive control is branch
+# protection on main restricting write access to the sync App (Duncan-gated,
+# see docs/mirror-inversion-runbook.md §7 in bagdock/bagdock) — this workflow
+# is the backstop that surfaces it loudly if that control is ever missing or
+# bypassed.
 
 name: Guardrail - author check
 
